@@ -10,13 +10,73 @@ import vm from 'vm';
 import Decimal from 'decimal.js';
 import { createRequire } from 'module';
 import { createTransactionJWT, OpenKBS } from "./sdk.mjs";
+import { join, resolve } from 'path';
+import { homedir } from 'os';
+import { promises as fs } from 'fs';
 const require = createRequire(import.meta.url);
+
+function isSecretComplex(secret) {
+    // Define the complexity rules
+    const minLength = 8;
+    const hasUppercase = /[A-Z]/;
+    const hasLowercase = /[a-z]/;
+    const hasDigit = /[0-9]/;
+
+    // Check the password against the rules
+    return (
+        secret.length >= minLength &&
+        hasUppercase.test(secret) &&
+        hasLowercase.test(secret) &&
+        hasDigit.test(secret) || new Set(secret).size > minLength
+    );
+}
+
+async function loadSecrets() {
+    const jsonFilePath = resolve(join(homedir(), '.openkbs', 'codeSecrets.json'));
+
+    try {
+        const jsonFileContent = await fs.readFile(jsonFilePath, 'utf-8');
+        return JSON.parse(jsonFileContent);
+    } catch (error) {
+        return {};
+    }
+}
+
+export function maskSecretsInOutput(response, secrets) {
+    Object.values(secrets).forEach(secretValue => {
+        if (secretValue && isSecretComplex(secretValue)) {
+            // Escape special characters in the secret value for use in a regular expression
+            const escapedSecretValue = secretValue.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            const secretRegex = new RegExp(escapedSecretValue, 'g');
+
+            try {
+                response = JSON.parse(JSON.stringify(response)?.replace(secretRegex, '***MASKED_SECRET***'));
+            } catch (e) {
+                console.log('unable to mask secrets')
+            }
+
+        }
+    });
+    return response;
+}
+
+function replaceSecrets(code, secrets) {
+    return code?.replace(/\{\{\s*secrets\.(\w+)\s*\}\}/g, (match, secretKey) => {
+        if (secrets.hasOwnProperty(secretKey)) {
+            return secrets[secretKey];
+        }
+        return match; // If the key is not found in the secrets map, leave the placeholder unchanged
+    });
+}
 
 async function executeHandler({ userCode, event, debug, transactionProvider }) {
     let options = {
         timeout: 180 * 1000,
         displayErrors: true
     };
+
+    const secrets = await loadSecrets();
+    userCode  = replaceSecrets(userCode, secrets);
 
     const openkbs = new OpenKBS({transactionProvider});
 
