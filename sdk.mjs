@@ -36,12 +36,11 @@ export function signPayload(payload, privateKey, expiresIn = 1000 * 60) {
     }
 }
 
-
-const createTransactionJWT = async ({toAccountId, message, walletPublicKey, walletPrivateKey, fromAccountId, AESKey, maxAmount, kbId}) => {
+export const createTransactionJWT = async ({
+    toAccountId, message, walletPublicKey, walletPrivateKey, fromAccountId, AESKey, maxAmount, kbId
+}) => {
     if (!AESKey) return;
-
     const walletPrivateKeyDecrypted = await decrypt(walletPrivateKey, AESKey);
-
     const JWTPayload = {
         operation: "transfer",
         resourceId: RESOURCE.tokens,
@@ -66,6 +65,8 @@ const createTransactionJWT = async ({toAccountId, message, walletPublicKey, wall
 }
 
 
+// Note: Prices are listed in credits.
+// 1,000 credits are equivalent to 1 cent.
 const services = {
     "whisperLargeV3": {
         url: "https://pipe.openkbs.com/openai--whisper-large-v3--default",

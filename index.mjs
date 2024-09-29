@@ -9,13 +9,16 @@ import * as cheerio from 'cheerio';
 import vm from 'vm';
 import Decimal from 'decimal.js';
 import { createRequire } from 'module';
+import { createTransactionJWT, OpenKBS } from "./sdk.mjs";
 const require = createRequire(import.meta.url);
 
-async function executeHandler({ userCode, event, debug }) {
+async function executeHandler({ userCode, event, debug, transactionProvider }) {
     let options = {
         timeout: 180 * 1000,
         displayErrors: true
     };
+
+    const openkbs = new OpenKBS({transactionProvider});
 
     // Create a new Script object
     let script = new vm.Script(`${userCode}`);
@@ -35,7 +38,7 @@ async function executeHandler({ userCode, event, debug }) {
         URL,
         Decimal,
         crypto,
-        openkbs: () => console.log("OpenKBS sdk not available while running onPremises infrastructure"),
+        openkbs,
         url,
         https,
         jwt,
@@ -106,15 +109,24 @@ app.all('/', async (req, res) => {
             data = req.body;
         }
 
+        let  {
+            event,
+            AESKey,
+            secrets,
+            walletPrivateKey,
+            walletPublicKey,
+            debug,
+            accountId
+        } = data;
+
+        const transactionProvider = (toAccountId, maxAmount) => createTransactionJWT({
+            toAccountId, walletPublicKey, walletPrivateKey, fromAccountId: accountId,
+            AESKey, maxAmount, kbId: (data?.kbId || 'unknown')
+        })
+
         const userCode = data.userCode;
 
-        const event = {
-            method,
-            queryParams: req.query,
-            ...req.body?.event
-        }
-
-        const response = await executeHandler({ userCode, event });
+        const response = await executeHandler({ userCode, event, debug, transactionProvider });
 
         if (response?.body) {
             res.status(200).json(response);
