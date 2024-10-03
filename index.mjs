@@ -17,6 +17,17 @@ import readline from 'readline';
 
 const require = createRequire(import.meta.url);
 
+const reset = "\x1b[0m";
+const bold = "\x1b[1m";
+const red = "\x1b[31m";
+const yellow = "\x1b[33m";
+const green = "\x1b[32m";
+
+console.red = (data) =>  console.log(`${red}${data}${reset}`)
+console.green = (data) =>  console.log(`${green}${bold}${data}${reset}`)
+console.yellow = (data) =>  console.log(`${yellow}${bold}${data}${reset}`)
+
+
 function isSecretComplex(secret) {
     const minLength = 8;
     const hasUppercase = /[A-Z]/;
@@ -187,6 +198,27 @@ async function executeHandler({ userCode, event, debug, transactionProvider }) {
     return response;
 }
 
+const printRunning = async () => {
+    const figlet = (await import('figlet')).default;
+    const chalk = (await import('chalk')).default;
+    console.green('\n');
+    const asciiArt = await generateAsciiArt('OpenKBS', figlet);
+    console.log(chalk.blue(asciiArt));
+    console.log(chalk.blue(`                          Code Execution`));
+}
+
+const generateAsciiArt = async (text, figlet) => {
+    return new Promise((resolve, reject) => {
+        figlet(text, (err, data) => {
+            if (err) {
+                reject(err);
+            } else {
+                resolve(data);
+            }
+        });
+    });
+};
+
 async function initializeSecrets() {
     const secretsFromFiles = await collectSecretsFromFiles(path.join((process.env.KB_DIR || process.cwd()), 'src'));
     const existingSecrets = await loadSecrets();
@@ -263,5 +295,6 @@ app.all('/', async (req, res) => {
     await initializeSecrets();
     app.listen(38595, 'localhost', () => {
         console.log('Server is running on http://localhost:38595');
+        printRunning()
     });
 })();
