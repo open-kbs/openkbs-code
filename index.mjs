@@ -42,6 +42,15 @@ function isSecretComplex(secret) {
     );
 }
 
+function replaceSecrets(code, secrets) {
+    return code?.replace(/\{\{\s*secrets\.(\w+)\s*\}\}/g, (match, secretKey) => {
+        if (secrets.hasOwnProperty(secretKey)) {
+            return secrets[secretKey];
+        }
+        return match; // If the key is not found in the secrets map, leave the placeholder unchanged
+    });
+}
+
 async function loadSecrets() {
     const jsonFilePath = resolve(join(homedir(), '.openkbs', 'codeSecrets.json'));
 
