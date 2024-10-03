@@ -10,19 +10,19 @@ import vm from 'vm';
 import Decimal from 'decimal.js';
 import { createRequire } from 'module';
 import { createTransactionJWT, OpenKBS } from "./sdk.mjs";
-import { join, resolve } from 'path';
+import path, { join, resolve } from 'path';
 import { homedir } from 'os';
 import { promises as fs } from 'fs';
+import readline from 'readline';
+
 const require = createRequire(import.meta.url);
 
 function isSecretComplex(secret) {
-    // Define the complexity rules
     const minLength = 8;
     const hasUppercase = /[A-Z]/;
     const hasLowercase = /[a-z]/;
     const hasDigit = /[0-9]/;
 
-    // Check the password against the rules
     return (
         secret.length >= minLength &&
         hasUppercase.test(secret) &&
@@ -42,31 +42,79 @@ async function loadSecrets() {
     }
 }
 
+async function saveSecrets(secrets) {
+    const jsonFilePath = resolve(join(homedir(), '.openkbs', 'codeSecrets.json'));
+    await fs.mkdir(resolve(join(homedir(), '.openkbs')), { recursive: true });
+    await fs.writeFile(jsonFilePath, JSON.stringify(secrets, null, 2), 'utf-8');
+}
+
 export function maskSecretsInOutput(response, secrets) {
     Object.values(secrets).forEach(secretValue => {
         if (secretValue && isSecretComplex(secretValue)) {
-            // Escape special characters in the secret value for use in a regular expression
             const escapedSecretValue = secretValue.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
             const secretRegex = new RegExp(escapedSecretValue, 'g');
 
             try {
                 response = JSON.parse(JSON.stringify(response)?.replace(secretRegex, '***MASKED_SECRET***'));
             } catch (e) {
-                console.log('unable to mask secrets')
+                console.log('unable to mask secrets');
             }
-
         }
     });
     return response;
 }
 
-function replaceSecrets(code, secrets) {
-    return code?.replace(/\{\{\s*secrets\.(\w+)\s*\}\}/g, (match, secretKey) => {
-        if (secrets.hasOwnProperty(secretKey)) {
-            return secrets[secretKey];
-        }
-        return match; // If the key is not found in the secrets map, leave the placeholder unchanged
+export function parseSecrets(code) {
+    const secretsPattern = /{{\s*secrets\.([a-zA-Z0-9_]+)\s*}}/g;
+    let match;
+    const secrets = [];
+
+    while ((match = secretsPattern.exec(code)) !== null) {
+        secrets.push(match[1]);
+    }
+
+    return secrets;
+}
+
+async function promptForSecrets(secrets) {
+    const rl = readline.createInterface({
+        input: process.stdin,
+        output: process.stdout
     });
+
+    const collectedSecrets = {};
+
+    for (const secret of secrets) {
+        collectedSecrets[secret] = await new Promise(resolve => {
+            rl.question(`Enter value for secret "${secret}": `, resolve);
+        });
+    }
+
+    rl.close();
+    return collectedSecrets;
+}
+
+async function collectSecretsFromFiles(dir) {
+    let secrets = new Set();
+
+    async function readDirRecursive(directory) {
+        const files = await fs.readdir(directory, { withFileTypes: true });
+
+        for (const file of files) {
+            const fullPath = join(directory, file.name);
+
+            if (file.isDirectory()) {
+                await readDirRecursive(fullPath);
+            } else if (file.isFile()) {
+                const content = await fs.readFile(fullPath, 'utf-8');
+                const fileSecrets = parseSecrets(content);
+                fileSecrets.forEach(secret => secrets.add(secret));
+            }
+        }
+    }
+
+    await readDirRecursive(dir);
+    return Array.from(secrets);
 }
 
 async function executeHandler({ userCode, event, debug, transactionProvider }) {
@@ -76,11 +124,10 @@ async function executeHandler({ userCode, event, debug, transactionProvider }) {
     };
 
     const secrets = await loadSecrets();
-    userCode  = replaceSecrets(userCode, secrets);
+    userCode = replaceSecrets(userCode, secrets);
 
-    const openkbs = new OpenKBS({transactionProvider});
+    const openkbs = new OpenKBS({ transactionProvider });
 
-    // Create a new Script object
     let script = new vm.Script(`${userCode}`);
 
     let consoleLogs = [];
@@ -106,23 +153,21 @@ async function executeHandler({ userCode, event, debug, transactionProvider }) {
         __dirname: '/tmp',
         require: (id) => {
             if (id === 'aws-sdk') {
-                return AWS
+                return AWS;
             }
 
-            return require(id)
+            return require(id);
         },
         module: { exports: {} }
-    }
+    };
 
     const sandbox = {
         ...rootContext,
         rootContext
     };
 
-    // Run the script in the sandbox context
     script.runInNewContext(sandbox, options);
 
-    // Run the handler with the event
     const handler = sandbox.module.exports.handler;
 
     let response = await handler(event);
@@ -136,10 +181,22 @@ async function executeHandler({ userCode, event, debug, transactionProvider }) {
             response,
             consoleLogs: consoleLogs,
             consoleErrors: consoleErrors
-        }
+        };
     }
 
-    return response
+    return response;
+}
+
+async function initializeSecrets() {
+    const secretsFromFiles = await collectSecretsFromFiles(path.join((process.env.KB_DIR || process.cwd()), 'src'));
+    const existingSecrets = await loadSecrets();
+    const newSecrets = secretsFromFiles.filter(secret => !(secret in existingSecrets));
+
+    if (newSecrets.length > 0) {
+        const userSecrets = await promptForSecrets(newSecrets);
+        const updatedSecrets = { ...existingSecrets, ...userSecrets };
+        await saveSecrets(updatedSecrets);
+    }
 }
 
 const app = express();
@@ -169,7 +226,7 @@ app.all('/', async (req, res) => {
             data = req.body;
         }
 
-        let  {
+        let {
             event,
             AESKey,
             secrets,
@@ -182,7 +239,7 @@ app.all('/', async (req, res) => {
         const transactionProvider = (toAccountId, maxAmount) => createTransactionJWT({
             toAccountId, walletPublicKey, walletPrivateKey, fromAccountId: accountId,
             AESKey, maxAmount, kbId: (data?.kbId || 'unknown')
-        })
+        });
 
         const userCode = data.userCode;
 
@@ -202,6 +259,9 @@ app.all('/', async (req, res) => {
     }
 });
 
-app.listen(38595, 'localhost', () => {
-    console.log('Server is running on http://localhost:38595');
-});
+(async () => {
+    await initializeSecrets();
+    app.listen(38595, 'localhost', () => {
+        console.log('Server is running on http://localhost:38595');
+    });
+})();

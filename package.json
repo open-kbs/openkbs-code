@@ -1,6 +1,6 @@
 {
   "name": "openkbs-code",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "OpenKBS - Code Execution Service",
   "main": "index.js",
   "scripts": {
@@ -12,7 +12,7 @@
     "log": "pm2 logs openkbs-code"
   },
   "bin": {
-    "openkbs": "./index.js"
+    "openkbs-code": "./index.js"
   },
   "keywords": [],
   "author": "OpenKBS",
