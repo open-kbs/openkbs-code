@@ -293,8 +293,8 @@ app.all('/', async (req, res) => {
 
 (async () => {
     await initializeSecrets();
-    app.listen(38595, 'localhost', () => {
-        console.log('Server is running on http://localhost:38595');
-        printRunning()
+    app.listen(38595, 'localhost', async () => {
+        await printRunning()
+        console.green('\nServer is running on http://localhost:38595')
     });
 })();
