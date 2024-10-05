@@ -14,6 +14,7 @@ import path, { join, resolve } from 'path';
 import { homedir } from 'os';
 import { promises as fs } from 'fs';
 import readline from 'readline';
+import process from 'process';
 
 const require = createRequire(import.meta.url);
 
@@ -157,6 +158,8 @@ async function executeHandler({ userCode, event, debug, transactionProvider }) {
         setTimeout: setTimeout,
         axios: axios,
         cheerio: cheerio,
+        process: process,
+        fs: fs,
         console: {
             log: (...args) => consoleLogs.push(args),
             error: (...args) => consoleErrors.push(args)
