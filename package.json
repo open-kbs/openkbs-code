@@ -1,6 +1,6 @@
 {
   "name": "openkbs-code",
-  "version": "0.0.7",
+  "version": "0.0.8",
   "description": "OpenKBS - Code Execution Service",
   "main": "index.js",
   "scripts": {
