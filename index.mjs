@@ -45,7 +45,7 @@ function isSecretComplex(secret) {
 
 function replaceSecrets(code, secrets) {
     return code?.replace(/\{\{\s*secrets\.(\w+)\s*\}\}/g, (match, secretKey) => {
-        if (secrets.hasOwnProperty(secretKey)) {
+        if (secrets.hasOwnProperty(secretKey) && secrets[secretKey]?.length) {
             return secrets[secretKey];
         }
         return match; // If the key is not found in the secrets map, leave the placeholder unchanged
