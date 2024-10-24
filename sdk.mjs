@@ -74,10 +74,15 @@ const services = {
         pricePerMinute: 600,
         modelType: "voiceToText"
     },
+    "stability.sd35Large": {
+        url: "https://pipe.openkbs.com/stabilityai--stable-diffusion-3.5-large--default",
+        accountId: '262be27db3355db0b5164bc4f50fee5f',
+        pricePerRequest: 2000,
+    },
     "stability.sd3Medium": {
         url: "https://pipe.openkbs.com/stabilityai--stable-diffusion-3-medium-diffusers--default",
         accountId: '9dd958f4d240fdf65b2d7adfec7b1c88',
-        pricePerRequest: 3500,
+        pricePerRequest: 1000,
     },
     "stability.sdxl": {
         url: "https://pipe.openkbs.com/stabilityai--stable-diffusion-xl-base-1.0--with-refiner",
