@@ -75,7 +75,7 @@ const services = {
         modelType: "voiceToText"
     },
     "stability.sd35Large": {
-        url: "https://pipe.openkbs.com/stabilityai--stable-3.5-large--default",
+        url: "https://pipe.openkbs.com/stabilityai--stable-diffusion-3.5-large--default",
         accountId: '262be27db3355db0b5164bc4f50fee5f',
         pricePerRequest: 2000,
     },
