@@ -52,6 +52,13 @@ function replaceSecrets(code, secrets) {
     });
 }
 
+function replaceVariables(code, variables) {
+    return code?.replace(/\{\{\s*variables\.(\w+)\s*\}\}/g, (match, key) => {
+        if (variables.hasOwnProperty(key)) return variables[key];
+        return match;
+    });
+}
+
 async function loadSecrets() {
     const jsonFilePath = resolve(join(homedir(), '.openkbs', 'codeSecrets.json'));
 
@@ -138,7 +145,7 @@ async function collectSecretsFromFiles(dir) {
     return Array.from(secrets);
 }
 
-async function executeHandler({ userCode, event, debug, transactionProvider }) {
+async function executeHandler({ userCode, event, debug, transactionProvider, variables }) {
     let options = {
         timeout: 180 * 1000,
         displayErrors: true
@@ -146,6 +153,10 @@ async function executeHandler({ userCode, event, debug, transactionProvider }) {
 
     const secrets = await loadSecrets();
     userCode = replaceSecrets(userCode, secrets);
+
+    if (variables && Object.keys(variables)?.length > 0) {
+        userCode = replaceVariables(userCode, variables);
+    }
 
     const openkbs = new OpenKBS({ transactionProvider });
 
@@ -277,7 +288,8 @@ app.all('/', async (req, res) => {
             walletPrivateKey,
             walletPublicKey,
             debug,
-            accountId
+            accountId,
+            variables
         } = data;
 
         const transactionProvider = (toAccountId, maxAmount) => createTransactionJWT({
@@ -287,7 +299,7 @@ app.all('/', async (req, res) => {
 
         const userCode = data.userCode;
 
-        const response = await executeHandler({ userCode, event, debug, transactionProvider });
+        const response = await executeHandler({ userCode, event, debug, transactionProvider, variables });
 
         if (response?.body) {
             res.status(200).json(response);
