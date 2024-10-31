@@ -15,7 +15,7 @@ import { homedir } from 'os';
 import { promises as fs } from 'fs';
 import readline from 'readline';
 import process from 'process';
-
+import JSON5 from 'json5'
 const require = createRequire(import.meta.url);
 
 const reset = "\x1b[0m";
@@ -180,6 +180,7 @@ async function executeHandler({ userCode, event, debug, transactionProvider, var
         Decimal,
         crypto,
         openkbs,
+        JSON5,
         url,
         https,
         jwt,

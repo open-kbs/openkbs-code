@@ -74,6 +74,16 @@ const services = {
         pricePerMinute: 600,
         modelType: "voiceToText"
     },
+    "bfl.fluxPro11": {
+        url: "https://pipe.openkbs.com/cloud/flux-pro-1.1",
+        accountId: '2c8d39d7225b6cad9f69dad3545a4975',
+        pricePerRequest: 4000,
+    },
+    "stability.stableImageUltra": {
+        url: "https://pipe.openkbs.com/cloud/stable-image--generate--ultra",
+        accountId: '9605bf7a3b6daaf7480f63d942237c05',
+        pricePerRequest: 8000,
+    },
     "stability.sd35Large": {
         url: "https://pipe.openkbs.com/stabilityai--stable-diffusion-3.5-large--default",
         accountId: '262be27db3355db0b5164bc4f50fee5f',
